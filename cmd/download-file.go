@@ -9,6 +9,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var downloadFileCmd = &cobra.Command{
@@ -23,10 +24,10 @@ var downloadFileCmd = &cobra.Command{
 			log.Fatalln("Bucket name, object name, and destination path are required.")
 		}
 
-		endpoint := "localhost:9000"
-		accessKeyID := "Gx0S3h31P8SfmOWhm3Tg"
-		secretAccessKey := "XAqfnX6Q77PhtEUhyjziZj8bsPpz9PoSLtgSh1yY"
-		useSSL := false
+		endpoint := viper.GetString("minio.endpoint")
+		accessKeyID := viper.GetString("minio.accessKeyID")
+		secretAccessKey := viper.GetString("minio.secretAccessKey")
+		useSSL := viper.GetBool("minio.useSSL")
 
 		minioClient, err := minio.New(endpoint, &minio.Options{
 			Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
