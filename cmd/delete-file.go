@@ -17,11 +17,12 @@ var deleteFileCmd = &cobra.Command{
 	Short: "Delete a file from a specified bucket",
 	Run: func(cmd *cobra.Command, args []string) {
 		role, _ := cmd.Flags().GetString("role")
+		bucketName, _ := cmd.Flags().GetString("bucket")
+		objectName, _ := cmd.Flags().GetString("object")
+
 		if role == "" {
 			log.Fatalln("Role is required. Use the --role flag to specify a role (e.g., Admin, Editor, Viewer).")
 		}
-		bucketName, _ := cmd.Flags().GetString("bucket")
-		objectName, _ := cmd.Flags().GetString("object")
 
 		if bucketName == "" || objectName == "" {
 			log.Fatalln("Bucket name and object name are required.")

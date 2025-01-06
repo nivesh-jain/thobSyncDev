@@ -8,6 +8,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/nivesh-jain/thobSyncDev.git/internal/rbac"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -16,12 +17,22 @@ var downloadFileCmd = &cobra.Command{
 	Use:   "download-file",
 	Short: "Download a file from a specified bucket",
 	Run: func(cmd *cobra.Command, args []string) {
+		role, _ := cmd.Flags().GetString("role")
 		bucketName, _ := cmd.Flags().GetString("bucket")
 		objectName, _ := cmd.Flags().GetString("object")
 		destination, _ := cmd.Flags().GetString("dest")
 
+		if role == "" {
+			log.Fatalln("Role is required. Use the --role flag to specify a role (e.g., Admin, Editor, Viewer).")
+		}
+
 		if bucketName == "" || objectName == "" || destination == "" {
 			log.Fatalln("Bucket name, object name, and destination path are required.")
+		}
+
+		// Check permission
+		if err := rbac.CheckPermission(role, "download-file"); err != nil {
+			log.Fatalf("Access Denied: %v\n", err)
 		}
 
 		endpoint := viper.GetString("minio.endpoint")
@@ -49,6 +60,7 @@ var downloadFileCmd = &cobra.Command{
 }
 
 func init() {
+	downloadFileCmd.Flags().StringP("role", "r", "", "Role of the user (Admin, Editor, Viewer)")
 	downloadFileCmd.Flags().StringP("bucket", "b", "", "Name of the bucket")
 	downloadFileCmd.Flags().StringP("object", "o", "", "Name of the object to download")
 	downloadFileCmd.Flags().StringP("dest", "d", "", "Destination directory path")
