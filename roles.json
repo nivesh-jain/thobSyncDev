@@ -1,0 +1,19 @@
+{
+    "Admin": [
+        "create-bucket",
+        "delete-bucket",
+        "upload-file",
+        "download-file",
+        "delete-file",
+        "list-files"
+    ],
+    "Editor": [
+        "upload-file",
+        "download-file",
+        "delete-file",
+        "list-files"
+    ],
+    "Viewer": [
+        "list-files"
+    ]
+}
