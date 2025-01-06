@@ -16,13 +16,17 @@ var deleteFileCmd = &cobra.Command{
 	Use:   "delete-file",
 	Short: "Delete a file from a specified bucket",
 	Run: func(cmd *cobra.Command, args []string) {
-		role, _ := cmd.Flags().GetString("role")
+		role := viper.GetString("role")
+		if role == "" {
+			log.Fatalln("You must initialize the CLI with 'init' before using this command.")
+		}
+
+		if err := rbac.CheckPermission(role, "delete-file"); err != nil {
+			log.Fatalf("Access Denied: %v\n", err)
+		}
+
 		bucketName, _ := cmd.Flags().GetString("bucket")
 		objectName, _ := cmd.Flags().GetString("object")
-
-		if role == "" {
-			log.Fatalln("Role is required. Use the --role flag to specify a role (e.g., Admin, Editor, Viewer).")
-		}
 
 		if bucketName == "" || objectName == "" {
 			log.Fatalln("Bucket name and object name are required.")
@@ -32,11 +36,6 @@ var deleteFileCmd = &cobra.Command{
 		accessKeyID := viper.GetString("minio.accessKeyID")
 		secretAccessKey := viper.GetString("minio.secretAccessKey")
 		useSSL := viper.GetBool("minio.useSSL")
-
-		// Check permission
-		if err := rbac.CheckPermission(role, "delete-file"); err != nil {
-			log.Fatalf("Access Denied: %v\n", err)
-		}
 
 		// Initialize MinIO client
 		minioClient, err := minio.New(endpoint, &minio.Options{
@@ -58,8 +57,6 @@ var deleteFileCmd = &cobra.Command{
 }
 
 func init() {
-	deleteFileCmd.Flags().StringP("role", "r", "", "Role of the user (Admin, Editor, Viewer)")
 	deleteFileCmd.Flags().StringP("bucket", "b", "", "Name of the bucket")
 	deleteFileCmd.Flags().StringP("object", "o", "", "Name of the object to delete")
-
 }
