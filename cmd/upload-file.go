@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/minio/minio-go/v7"
 	"github.com/nivesh-jain/thobSyncDev.git/internal/auth"
 	"github.com/nivesh-jain/thobSyncDev.git/internal/db"
 	"github.com/spf13/cobra"
@@ -31,7 +32,7 @@ var uploadFileCmd = &cobra.Command{
 			bucketName,
 			filePath, // Object name (uses the file's base name)
 			filePath, // Path to the file
-			nil,
+			minio.PutObjectOptions{},
 		)
 		if err != nil {
 			fmt.Printf("Failed to upload file: %v\n", err)

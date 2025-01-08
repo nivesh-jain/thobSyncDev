@@ -10,6 +10,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var lockBucketName string
+var lockFilePath string
+
 var lockFileCmd = &cobra.Command{
 	Use:   "lock-file",
 	Short: "Lock a file to prevent modifications",
@@ -17,35 +20,39 @@ var lockFileCmd = &cobra.Command{
 		// Check user's role
 		username := auth.CheckUserRole("Admin", "Editor")
 
-		// Simulate file lock
-		fmt.Printf("Locking file '%s' in bucket '%s'...\n", filePath, bucketName)
+		// Log the operation
+		fmt.Printf("Locking file '%s' in bucket '%s'...\n", lockFilePath, lockBucketName)
 
-		// Logic to lock file (metadata update or specific mechanism)
-		client := db.GetMinioClient() // Ensure GetMinioClient is implemented
-		metadata := map[string]string{"locked": "true"}
-		_, err := client.CopyObject(context.Background(), minio.CopyDestOptions{
-			Bucket: bucketName,
-			Object: filePath,
-		}, minio.CopySrcOptions{
-			Bucket:       bucketName,
-			Object:       filePath,
-			UserMetadata: metadata,
-		})
+		// Get MinIO client
+		client := db.GetMinioClient()
+
+		// Copy the object with updated metadata
+		_, err := client.CopyObject(
+			context.Background(),
+			minio.CopyDestOptions{
+				Bucket:          lockBucketName,
+				Object:          lockFilePath,
+				ReplaceMetadata: true, // Ensure metadata is replaced
+				UserMetadata:    map[string]string{"locked": "true"},
+			},
+			minio.CopySrcOptions{
+				Bucket: lockBucketName,
+				Object: lockFilePath,
+			},
+		)
 		if err != nil {
 			fmt.Printf("Failed to lock file: %v\n", err)
-			db.LogOperation(username, "Lock", filePath, bucketName, "Failure")
+			db.LogOperation(username, "Lock", lockFilePath, lockBucketName, "Failure")
 			return
 		}
 
 		fmt.Println("File locked successfully!")
-
-		// Log the operation
-		db.LogOperation(username, "Lock", filePath, bucketName, "Success")
+		db.LogOperation(username, "Lock", lockFilePath, lockBucketName, "Success")
 	},
 }
 
 func init() {
-	lockFileCmd.Flags().StringVar(&bucketName, "bucket", "", "Name of the bucket")
-	lockFileCmd.Flags().StringVar(&filePath, "file", "", "Path to the file to lock")
+	lockFileCmd.Flags().StringVar(&lockBucketName, "bucket", "", "Name of the bucket")
+	lockFileCmd.Flags().StringVar(&lockFilePath, "file", "", "Path to the file to lock")
 	rootCmd.AddCommand(lockFileCmd)
 }
