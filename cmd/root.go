@@ -19,8 +19,5 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(listBucketsCmd)
-	rootCmd.AddCommand(uploadFileCmd)
-	rootCmd.AddCommand(downloadFileCmd)
-	rootCmd.AddCommand(deleteFileCmd)
 	rootCmd.AddCommand(listFilesCmd)
 }
