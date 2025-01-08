@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var authDBPath string
 var logDBPath string
 var adminUsername string
 
