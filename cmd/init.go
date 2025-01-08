@@ -10,53 +10,44 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// initCmd defines the "init" command for initializing the CLI with a new user.
+var authDBPath string
+var logDBPath string
+var adminUsername string
+
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize the CLI with a new user",
+	Short: "Initialize the application as an Admin",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Generate a random token for the user
+		// Initialize Authentication DB
+		authDB, err := db.InitAuthDB(authDBPath)
+		if err != nil {
+			log.Fatalf("Failed to initialize Authentication DB: %v", err)
+		}
+		defer authDB.Close()
+
+		// Initialize Logging DB
+		logDB, err := db.InitLogDB(logDBPath)
+		if err != nil {
+			log.Fatalf("Failed to initialize Logging DB: %v", err)
+		}
+		defer logDB.Close()
+
+		// Seed Admin User
 		token := auth.GenerateToken()
-
-		// Initialize the database
-		databaseConnection, err := db.InitDB(dbPath)
+		_, err = authDB.Exec("INSERT INTO users (username, token, role) VALUES (?, ?, ?)", adminUsername, token, "Admin")
 		if err != nil {
-			log.Fatalf("Failed to initialize database: %v", err)
-		}
-		defer databaseConnection.Close()
-
-		// Seed roles if not already present
-		err = db.SeedRoles(databaseConnection)
-		if err != nil {
-			log.Fatalf("Failed to seed roles: %v", err)
+			log.Fatalf("Failed to create Admin user: %v", err)
 		}
 
-		// Check if the username already exists
-		_, _, _, err = db.GetUserByUsername(databaseConnection, username)
-		if err == nil {
-			log.Fatalf("User '%s' already exists.", username)
-		}
+		fmt.Printf("Admin user '%s' created successfully.\nToken: %s\n", adminUsername, token)
 
-		// Insert the new user into the database
-		userID, err := db.CreateUser(databaseConnection, username, token)
-		if err != nil {
-			log.Fatalf("Failed to create user: %v", err)
-		}
-
-		// Assign "Admin" role to the first user created
-		err = db.AssignRole(databaseConnection, int(userID), "Admin")
-		if err != nil {
-			log.Fatalf("Failed to assign 'Admin' role to user: %v", err)
-		}
-
-		fmt.Printf("User '%s' created successfully with 'Admin' role.\n", username)
-		fmt.Printf("Token: %s\n", token)
+		// TODO: Upload SQLite files to S3 bucket
 	},
 }
 
 func init() {
-	// Define flags for the init command
-	initCmd.Flags().StringVarP(&dbPath, "db-path", "d", "minio_cli.db", "Path to SQLite database")
-	initCmd.Flags().StringVarP(&username, "username", "u", "", "Username for the new user")
+	initCmd.Flags().StringVar(&authDBPath, "auth-db", "auth.db", "Path to Authentication DB")
+	initCmd.Flags().StringVar(&logDBPath, "log-db", "log.db", "Path to Logging DB")
+	initCmd.Flags().StringVar(&adminUsername, "admin", "admin", "Admin username")
 	rootCmd.AddCommand(initCmd)
 }

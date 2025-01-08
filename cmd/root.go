@@ -18,6 +18,6 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(listBucketsCmd)
-	rootCmd.AddCommand(listFilesCmd)
+	// rootCmd.AddCommand(listBucketsCmd)
+	// rootCmd.AddCommand(listFilesCmd)
 }
