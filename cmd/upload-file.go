@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
-	"log"
 
-	"github.com/nivesh-jain/thobSyncDev.git/config"
+	"github.com/nivesh-jain/thobSyncDev.git/internal/auth"
+	"github.com/nivesh-jain/thobSyncDev.git/internal/db"
 	"github.com/spf13/cobra"
 )
 
@@ -17,28 +17,30 @@ var uploadFileCmd = &cobra.Command{
 	Short: "Upload a file to the specified bucket",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Check user's role
-		username, role := config.GetCurrentUser()
-		if role != "Admin" && role != "Editor" {
-			log.Fatalf("Permission denied: %s role cannot upload files.", role)
-		}
-
-		// Simulate file upload
-		fmt.Printf("Uploading file '%s' to bucket '%s'...\n", filePath, bucketName)
-		// Add logic to interact with S3 bucket
-		fmt.Println("File uploaded successfully!")
+		username := auth.CheckUserRole("Admin", "Editor")
 
 		// Log the operation
-		logDB, err := sql.Open("sqlite3", logDBPath)
-		if err != nil {
-			log.Fatalf("Failed to open Logging DB: %v", err)
-		}
-		defer logDB.Close()
+		fmt.Printf("Uploading file '%s' to bucket '%s'...\n", filePath, bucketName)
 
-		_, err = logDB.Exec("INSERT INTO logs (user_id, operation, file_name, bucket_name, status) VALUES (?, ?, ?, ?, ?)",
-			username, "Upload", filePath, bucketName, "Success")
+		// Get MinIO client
+		client := db.GetMinioClient()
+
+		// Upload the file
+		_, err := client.FPutObject(
+			context.Background(),
+			bucketName,
+			filePath, // Object name (uses the file's base name)
+			filePath, // Path to the file
+			nil,
+		)
 		if err != nil {
-			log.Fatalf("Failed to log operation: %v", err)
+			fmt.Printf("Failed to upload file: %v\n", err)
+			db.LogOperation(username, "Upload", filePath, bucketName, "Failure")
+			return
 		}
+
+		fmt.Println("File uploaded successfully!")
+		db.LogOperation(username, "Upload", filePath, bucketName, "Success")
 	},
 }
 
