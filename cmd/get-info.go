@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/nivesh-jain/thobSyncDev.git/internal/auth"
@@ -15,7 +16,7 @@ var infoFilePath string
 
 var getInfoCmd = &cobra.Command{
 	Use:   "get-info",
-	Short: "Fetch metadata, retention info, and legal hold status for a file",
+	Short: "Fetch metadata, retention info, legal hold status, and versioning for a file",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Check user's role
 		username := auth.CheckUserRole("Admin", "Editor", "Viewer")
@@ -62,7 +63,7 @@ var getInfoCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("Failed to get retention info: %v\n", err)
 		} else {
-			fmt.Printf("Retention Info: %s %v", retention, retainUntilDate)
+			fmt.Printf("Retention Info: %s %v\n", retention, retainUntilDate)
 		}
 
 		// Fetch legal hold information
@@ -78,6 +79,27 @@ var getInfoCmd = &cobra.Command{
 			fmt.Printf("Failed to get legal hold info: %v\n", err)
 		} else {
 			fmt.Printf("Legal Hold: %v\n", legalHold)
+		}
+
+		// Fetch version information
+		fmt.Println("Versions:")
+		objectCh := client.ListObjects(
+			context.Background(),
+			infoBucketName,
+			minio.ListObjectsOptions{
+				Prefix:       infoFilePath,
+				Recursive:    true,
+				WithVersions: true, // Enable versioning
+			},
+		)
+
+		for object := range objectCh {
+			if object.Err != nil {
+				log.Printf("Error fetching version: %v\n", object.Err)
+				continue
+			}
+			fmt.Printf("  VersionID: %s | Last Modified: %v | Is Latest: %v\n",
+				object.VersionID, object.LastModified, object.IsLatest)
 		}
 
 		db.LogOperation(username, "GetInfo", infoFilePath, infoBucketName, "Success")
