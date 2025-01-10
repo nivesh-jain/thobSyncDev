@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/nivesh-jain/thobSyncDev.git/internal/auth"
@@ -15,7 +16,7 @@ var lockFilePath string
 
 var lockFileCmd = &cobra.Command{
 	Use:   "lock-file",
-	Short: "Lock a file to prevent modifications",
+	Short: "Lock a file in a bucket to prevent modifications",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Check user's role
 		username := auth.CheckUserRole("Admin", "Editor")
@@ -26,14 +27,26 @@ var lockFileCmd = &cobra.Command{
 		// Get MinIO client
 		client := db.GetMinioClient()
 
-		// Copy the object with updated metadata
+		// Define custom metadata
+		userMetadata := map[string]string{
+			"locked-by": username,
+		}
+
+		// Define retention options
+		mode := minio.Governance
+		retainUntilDate := time.Now().Add(24 * time.Hour) // Lock for 24 hours
+
+		// Apply retention, legal hold, and metadata updates using CopyObject
 		_, err := client.CopyObject(
 			context.Background(),
 			minio.CopyDestOptions{
 				Bucket:          lockBucketName,
 				Object:          lockFilePath,
-				ReplaceMetadata: true, // Ensure metadata is replaced
-				UserMetadata:    map[string]string{"locked": "true"},
+				ReplaceMetadata: true,                   // Force metadata replacement
+				UserMetadata:    userMetadata,           // Update metadata
+				LegalHold:       minio.LegalHoldEnabled, // Enable legal hold
+				Mode:            mode,                   // Set governance mode
+				RetainUntilDate: retainUntilDate,        // Set retain-until date
 			},
 			minio.CopySrcOptions{
 				Bucket: lockBucketName,
@@ -41,12 +54,13 @@ var lockFileCmd = &cobra.Command{
 			},
 		)
 		if err != nil {
-			fmt.Printf("Failed to lock file: %v\n", err)
+			fmt.Printf("Failed to apply lock and update metadata: %v\n", err)
 			db.LogOperation(username, "Lock", lockFilePath, lockBucketName, "Failure")
 			return
 		}
 
-		fmt.Println("File locked successfully!")
+		// Log success
+		fmt.Println("File locked successfully with retention and updated metadata!")
 		db.LogOperation(username, "Lock", lockFilePath, lockBucketName, "Success")
 	},
 }
